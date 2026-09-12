@@ -9,6 +9,8 @@ const connectionsEl = document.getElementById('connections');
 const sharedFolders = [];
 const remoteShares = new Map();
 const dataConnections = new Map();
+const pendingConnections = new Set();
+const wiredConnections = new WeakSet();
 
 const peer = new Peer({
   config: {
@@ -126,7 +128,13 @@ function broadcastShares() {
 }
 
 function attachConnection(conn) {
+  if (wiredConnections.has(conn)) {
+    return;
+  }
+  wiredConnections.add(conn);
+
   conn.on('open', () => {
+    pendingConnections.delete(conn.peer);
     dataConnections.set(conn.peer, conn);
     renderConnections();
     sendShares(conn);
@@ -140,6 +148,7 @@ function attachConnection(conn) {
   });
 
   conn.on('close', () => {
+    pendingConnections.delete(conn.peer);
     dataConnections.delete(conn.peer);
     remoteShares.delete(conn.peer);
     renderConnections();
@@ -147,6 +156,7 @@ function attachConnection(conn) {
   });
 
   conn.on('error', (err) => {
+    pendingConnections.delete(conn.peer);
     console.error(`Fehler mit ${conn.peer}:`, err);
   });
 }
@@ -174,10 +184,11 @@ connectBtn.addEventListener('click', () => {
     return;
   }
 
-  if (dataConnections.has(targetId)) {
+  if (dataConnections.has(targetId) || pendingConnections.has(targetId)) {
     return;
   }
 
+  pendingConnections.add(targetId);
   const conn = peer.connect(targetId, { reliable: true });
   attachConnection(conn);
   peerInput.value = '';

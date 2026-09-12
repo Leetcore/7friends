@@ -2,7 +2,12 @@ const { app, BrowserWindow, dialog, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs/promises');
 
+function getAppUrl() {
+  return new URL(`file://${path.join(__dirname, 'index.html')}`).toString();
+}
+
 function createWindow() {
+  const appUrl = getAppUrl();
   const win = new BrowserWindow({
     width: 1100,
     height: 780,
@@ -14,6 +19,14 @@ function createWindow() {
   });
 
   win.loadFile(path.join(__dirname, 'index.html'));
+
+  win.webContents.on('will-navigate', (event, url) => {
+    if (url !== appUrl) {
+      event.preventDefault();
+    }
+  });
+
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 }
 
 app.whenReady().then(() => {
@@ -50,7 +63,11 @@ async function readFolderTree(dirPath) {
   return children.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-ipcMain.handle('select-folder', async () => {
+ipcMain.handle('select-folder', async (event) => {
+  if (event.senderFrame.url !== getAppUrl()) {
+    throw new Error('Unauthorized sender');
+  }
+
   const result = await dialog.showOpenDialog({
     properties: ['openDirectory']
   });

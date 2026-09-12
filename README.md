@@ -11,6 +11,8 @@ Electron Web App mit Vanilla JS und PeerJS, um Ordner-Freigaben zwischen Teilneh
 
 ## Start
 
+Voraussetzung: **Node.js >= 22.12.0** (für die eingesetzte Electron-Version).
+
 ```bash
 npm install
 npm start
