@@ -46,19 +46,30 @@ app.on('window-all-closed', () => {
 });
 
 async function readFolderTree(dirPath) {
+  const MAX_DEPTH = 6;
+  return readFolderTreeAtDepth(dirPath, 0, MAX_DEPTH);
+}
+
+async function readFolderTreeAtDepth(dirPath, depth, maxDepth) {
+  if (depth >= maxDepth) {
+    return [];
+  }
+
   const entries = await fs.readdir(dirPath, { withFileTypes: true });
-  const children = await Promise.all(
-    entries
-      .filter((entry) => entry.isDirectory())
-      .map(async (entry) => {
-        const absolutePath = path.join(dirPath, entry.name);
-        return {
-          name: entry.name,
-          path: absolutePath,
-          children: await readFolderTree(absolutePath)
-        };
-      })
-  );
+  const children = [];
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+
+    const absolutePath = path.join(dirPath, entry.name);
+    children.push({
+      name: entry.name,
+      path: absolutePath,
+      children: await readFolderTreeAtDepth(absolutePath, depth + 1, maxDepth)
+    });
+  }
 
   return children.sort((a, b) => a.name.localeCompare(b.name));
 }

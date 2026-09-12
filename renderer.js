@@ -113,9 +113,10 @@ function renderConnections() {
 }
 
 function sendShares(conn) {
+  const publicFolders = sharedFolders.map(toPublicFolder);
   conn.send({
     type: 'folder-update',
-    folders: sharedFolders
+    folders: publicFolders
   });
 }
 
@@ -142,7 +143,7 @@ function attachConnection(conn) {
 
   conn.on('data', (message) => {
     if (message?.type === 'folder-update' && Array.isArray(message.folders)) {
-      remoteShares.set(conn.peer, message.folders);
+      remoteShares.set(conn.peer, message.folders.map(toPublicFolder));
       renderRemoteFolders();
     }
   });
@@ -152,6 +153,13 @@ function attachConnection(conn) {
     if (dataConnections.get(conn.peer) === conn) {
       dataConnections.delete(conn.peer);
       remoteShares.delete(conn.peer);
+    }
+
+    function toPublicFolder(folder) {
+      return {
+        name: folder.name,
+        children: Array.isArray(folder.children) ? folder.children.map(toPublicFolder) : []
+      };
     }
     renderConnections();
     renderRemoteFolders();
