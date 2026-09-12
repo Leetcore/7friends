@@ -113,7 +113,7 @@ function renderConnections() {
 }
 
 function sendShares(conn) {
-  const publicFolders = sharedFolders.map(toPublicFolder);
+  const publicFolders = sharedFolders.map((folder) => toPublicFolder(folder)).filter(Boolean);
   conn.send({
     type: 'folder-update',
     folders: publicFolders
@@ -126,6 +126,31 @@ function broadcastShares() {
       sendShares(conn);
     }
   }
+}
+
+function toPublicFolder(folder, depth = 0, maxDepth = 6) {
+  if (!folder || typeof folder !== 'object' || depth > maxDepth) {
+    return null;
+  }
+
+  if (typeof folder.name !== 'string' || folder.name.length === 0 || folder.name.length > 255) {
+    return null;
+  }
+
+  const safeChildren = [];
+  if (Array.isArray(folder.children)) {
+    for (const child of folder.children) {
+      const safeChild = toPublicFolder(child, depth + 1, maxDepth);
+      if (safeChild) {
+        safeChildren.push(safeChild);
+      }
+    }
+  }
+
+  return {
+    name: folder.name,
+    children: safeChildren
+  };
 }
 
 function attachConnection(conn) {
@@ -143,7 +168,10 @@ function attachConnection(conn) {
 
   conn.on('data', (message) => {
     if (message?.type === 'folder-update' && Array.isArray(message.folders)) {
-      remoteShares.set(conn.peer, message.folders.map(toPublicFolder));
+      remoteShares.set(
+        conn.peer,
+        message.folders.map((folder) => toPublicFolder(folder)).filter(Boolean)
+      );
       renderRemoteFolders();
     }
   });
@@ -153,13 +181,6 @@ function attachConnection(conn) {
     if (dataConnections.get(conn.peer) === conn) {
       dataConnections.delete(conn.peer);
       remoteShares.delete(conn.peer);
-    }
-
-    function toPublicFolder(folder) {
-      return {
-        name: folder.name,
-        children: Array.isArray(folder.children) ? folder.children.map(toPublicFolder) : []
-      };
     }
     renderConnections();
     renderRemoteFolders();
