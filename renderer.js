@@ -149,8 +149,10 @@ function attachConnection(conn) {
 
   conn.on('close', () => {
     pendingConnections.delete(conn.peer);
-    dataConnections.delete(conn.peer);
-    remoteShares.delete(conn.peer);
+    if (dataConnections.get(conn.peer) === conn) {
+      dataConnections.delete(conn.peer);
+      remoteShares.delete(conn.peer);
+    }
     renderConnections();
     renderRemoteFolders();
   });

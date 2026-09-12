@@ -11,7 +11,7 @@ Electron Web App mit Vanilla JS und PeerJS, um Ordner-Freigaben zwischen Teilneh
 
 ## Start
 
-Voraussetzung: **Node.js >= 22.12.0** (für die eingesetzte Electron-Version).
+Voraussetzung: Eine Node.js-Version, die mit der im Projekt installierten Electron-Version kompatibel ist.
 
 ```bash
 npm install
