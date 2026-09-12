@@ -1,0 +1,22 @@
+{
+  "name": "7friends",
+  "version": "1.0.0",
+  "description": "Electron PeerJS folder sharing app",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://localhost:26831/Leetcore/7friends"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "peerjs": "^1.5.5"
+  },
+  "devDependencies": {
+    "electron": "^44.3.0"
+  }
+}

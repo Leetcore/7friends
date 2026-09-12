@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>7friends</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main>
+      <h1>7friends</h1>
+      <p>Peer.js Datei-/Ordnerübersicht über WebRTC</p>
+
+      <section class="card">
+        <h2>Verbindung</h2>
+        <p><strong>Deine Peer-ID:</strong> <span id="myPeerId">Wird erstellt…</span></p>
+        <div class="row">
+          <input id="peerInput" type="text" placeholder="Peer-ID eingeben" />
+          <button id="connectBtn">Verbinden</button>
+        </div>
+        <ul id="connections"></ul>
+      </section>
+
+      <section class="card">
+        <h2>Eigene Freigaben</h2>
+        <button id="shareFolderBtn">Ordner freigeben</button>
+        <div id="localFolders"></div>
+      </section>
+
+      <section class="card">
+        <h2>Ordner anderer Teilnehmer</h2>
+        <div id="remoteFolders"></div>
+      </section>
+    </main>
+
+    <script src="node_modules/peerjs/dist/peerjs.min.js"></script>
+    <script src="renderer.js"></script>
+  </body>
+</html>

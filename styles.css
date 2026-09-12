@@ -1,0 +1,68 @@
+:root {
+  color-scheme: dark;
+  font-family: Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #121212;
+  color: #f5f5f5;
+}
+
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+h1 {
+  margin-bottom: 4px;
+}
+
+.card {
+  background: #1e1e1e;
+  border: 1px solid #2c2c2c;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+input,
+button {
+  background: #222;
+  color: #fff;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 8px;
+}
+
+input {
+  flex: 1;
+}
+
+ul {
+  list-style: none;
+  padding-left: 20px;
+}
+
+.tree-node {
+  margin: 3px 0;
+}
+
+.folder {
+  color: #8ec5ff;
+}
+
+.peer-group {
+  margin-bottom: 12px;
+}
+
+.peer-title {
+  margin-bottom: 6px;
+  font-weight: bold;
+}
