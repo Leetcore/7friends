@@ -34,6 +34,10 @@ const peerStatus = ref('Verbinde mit dem Peer-Netzwerk')
 const fileInput = ref(null)
 const audioRef = ref(null)
 const activeTrack = ref(null)
+const peerIdDraft = ref('')
+const peerIdEditorOpen = ref(false)
+const peerIdError = ref('')
+const isApplyingPeerId = ref(false)
 
 let peer
 const connections = new Map()
@@ -267,12 +271,15 @@ function registerConnection(connection, direction) {
   })
   connection.on('data', (message) => handleMessage(connection, message))
   connection.on('close', () => {
-    connections.delete(connection.peer)
+    if (connections.get(connection.peer) === connection) {
+      connections.delete(connection.peer)
+      const friend = friends.value.find((item) => item.peerId === connection.peer)
+      if (friend?.approved) friend.status = 'Getrennt'
+    }
     accessRequests.value = accessRequests.value.filter((item) => item.peerId !== connection.peer)
-    const friend = friends.value.find((item) => item.peerId === connection.peer)
-    if (friend?.approved) friend.status = 'Getrennt'
   })
   connection.on('error', () => {
+    if (connections.get(connection.peer) !== connection) return
     const friend = friends.value.find((item) => item.peerId === connection.peer)
     if (friend) friend.status = 'Verbindung fehlgeschlagen'
   })
@@ -293,6 +300,31 @@ function connectToFriend() {
   registerConnection(connection, 'outgoing')
   friendIdInput.value = ''
   activeTab.value = 'friends'
+}
+
+function reconnectToFriend(friend) {
+  if (!friend.approved || !peer || peer.destroyed) return
+
+  const previousConnection = connections.get(friend.peerId)
+  if (previousConnection) {
+    connections.delete(friend.peerId)
+    previousConnection.close()
+  }
+
+  activePeerId.value = friend.peerId
+  activeTab.value = 'friends'
+  friend.status = 'Verbindung wird aufgebaut'
+  const connection = peer.connect(friend.peerId, { reliable: true })
+  registerConnection(connection, 'outgoing')
+}
+
+function refreshFriends() {
+  const approvedFriends = friends.value.filter((friend) => friend.approved)
+  if (approvedFriends.length === 0) return
+
+  const selectedPeerId = activePeerId.value || approvedFriends[0].peerId
+  for (const friend of approvedFriends) reconnectToFriend(friend)
+  activePeerId.value = selectedPeerId
 }
 
 function addFiles(event) {
@@ -379,6 +411,61 @@ async function copyPeerId() {
   }
 }
 
+function openPeerIdEditor() {
+  peerIdDraft.value = peerId.value
+  peerIdError.value = ''
+  peerIdEditorOpen.value = true
+}
+
+function generatePeerId() {
+  peerIdDraft.value = crypto.randomUUID()
+  peerIdError.value = ''
+}
+
+function closePeerIdEditor() {
+  if (isApplyingPeerId.value) return
+
+  const savedPeerId = localStorage.getItem('7friends.peerId') || peerId.value
+  if (peerId.value !== savedPeerId) {
+    const failedPeer = peer
+    peer = null
+    if (failedPeer && !failedPeer.destroyed) failedPeer.destroy()
+    peerId.value = savedPeerId
+    peerStatus.value = 'Verbinde mit dem Peer-Netzwerk'
+    startPeer(savedPeerId)
+  }
+
+  peerIdError.value = ''
+  peerIdEditorOpen.value = false
+}
+
+function applyPeerId() {
+  const nextId = peerIdDraft.value.trim()
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(nextId)) {
+    peerIdError.value = 'Nutze 1 bis 128 Buchstaben, Zahlen, Bindestriche oder Unterstriche.'
+    return
+  }
+
+  if (nextId === peerId.value) {
+    peerIdEditorOpen.value = false
+    return
+  }
+
+  peerIdError.value = ''
+  isApplyingPeerId.value = true
+  const previousPeer = peer
+  peer = null
+  if (previousPeer && !previousPeer.destroyed) previousPeer.destroy()
+
+  connections.clear()
+  accessRequests.value = []
+  activePeerId.value = ''
+  for (const friend of friends.value) friend.status = 'Getrennt'
+  peerId.value = nextId
+  peerStatus.value = 'Verbinde mit dem Peer-Netzwerk'
+  startPeer(nextId)
+}
+
 function saveNickname() {
   const cleanedName = nickname.value.trim().slice(0, 28) || 'Freund'
   nickname.value = cleanedName
@@ -389,21 +476,36 @@ function saveNickname() {
   }
 }
 
+function startPeer(id) {
+  const currentPeer = new Peer(id)
+  peer = currentPeer
+  currentPeer.on('open', (openedId) => {
+    if (peer !== currentPeer) return
+    peerId.value = openedId
+    peerIdDraft.value = openedId
+    peerStatus.value = 'Im Peer-Netzwerk erreichbar'
+    localStorage.setItem('7friends.peerId', openedId)
+    isApplyingPeerId.value = false
+    peerIdEditorOpen.value = false
+  })
+  currentPeer.on('connection', (connection) => registerConnection(connection, 'incoming'))
+  currentPeer.on('error', (error) => {
+    if (peer !== currentPeer) return
+    if (error.type === 'unavailable-id') {
+      peerStatus.value = 'Diese ID ist bereits vergeben.'
+      peerIdError.value = 'Diese ID ist bereits vergeben. Wähle eine andere.'
+    } else {
+      peerStatus.value = 'Peer-Netzwerk nicht erreichbar'
+      peerIdError.value = isApplyingPeerId.value ? 'Die Verbindung konnte nicht aufgebaut werden.' : ''
+    }
+    isApplyingPeerId.value = false
+  })
+}
+
 onMounted(() => {
   localStorage.setItem('7friends.peerId', peerId.value)
   localStorage.setItem('7friends.nickname', nickname.value)
-  peer = new Peer(peerId.value)
-  peer.on('open', (id) => {
-    peerId.value = id
-    peerStatus.value = 'Im Peer-Netzwerk erreichbar'
-    localStorage.setItem('7friends.peerId', id)
-  })
-  peer.on('connection', (connection) => registerConnection(connection, 'incoming'))
-  peer.on('error', (error) => {
-    peerStatus.value = error.type === 'unavailable-id'
-      ? 'Diese ID ist bereits vergeben. App neu starten.'
-      : 'Peer-Netzwerk nicht erreichbar'
-  })
+  startPeer(peerId.value)
 })
 
 onUnmounted(() => {
@@ -423,11 +525,16 @@ onUnmounted(() => {
       <div class="profile-block">
         <label for="nickname">DEIN PROFIL</label>
         <input id="nickname" v-model="nickname" maxlength="28" @change="saveNickname" />
-        <button class="id-copy" type="button" @click="copyPeerId">
-          <span class="online-dot"></span>
-          <span class="id-value">{{ peerId.slice(0, 18) }}…</span>
-          <span class="copy-label">Kopieren</span>
-        </button>
+        <div class="profile-controls">
+          <button class="id-copy" type="button" @click="copyPeerId">
+            <span class="online-dot"></span>
+            <span class="id-value">{{ peerId.slice(0, 18) }}…</span>
+            <span class="copy-label">Kopieren</span>
+          </button>
+          <button class="id-edit-button" type="button" title="GUID ändern" @click="openPeerIdEditor">
+            <span aria-hidden="true">✎</span><span class="id-edit-label">GUID ändern</span>
+          </button>
+        </div>
       </div>
 
       <nav class="main-nav" aria-label="Hauptnavigation">
@@ -524,9 +631,14 @@ onUnmounted(() => {
           </div>
         </section>
 
-        <div class="friends-heading"><h2>Deine Verbindungen</h2><span>{{ friends.length }} {{ friends.length === 1 ? 'Person' : 'Personen' }}</span></div>
+        <div class="friends-heading">
+          <button class="friends-heading-refresh" type="button" title="Alle Verbindungen neu verbinden und Dateilisten aktualisieren" @click="refreshFriends">
+            <span>Deine Verbindungen</span><span aria-hidden="true">↻</span>
+          </button>
+          <span>{{ friends.length }} {{ friends.length === 1 ? 'Person' : 'Personen' }}</span>
+        </div>
         <div v-if="friends.length" class="friend-list">
-          <button v-for="friend in friends" :key="friend.peerId" class="friend-row" :class="{ chosen: activePeerId === friend.peerId }" :disabled="!friend.approved" @click="activePeerId = friend.peerId">
+          <button v-for="friend in friends" :key="friend.peerId" class="friend-row" :class="{ chosen: activePeerId === friend.peerId }" :disabled="!friend.approved" @click="reconnectToFriend(friend)">
             <span class="avatar">{{ friend.nickname.slice(0, 1).toUpperCase() }}</span>
             <span class="friend-details"><strong>{{ friend.nickname }}</strong><small>{{ friend.peerId.slice(0, 24) }}…</small></span>
             <span class="friend-status"><i :class="{ online: friend.status === 'Verbunden' }"></i>{{ friend.status }}</span>
@@ -562,5 +674,22 @@ onUnmounted(() => {
 
       <Transition name="toast"><div v-if="transferMessage" class="toast-message">{{ transferMessage }}</div></Transition>
     </section>
+
+    <div v-if="peerIdEditorOpen" class="id-dialog-overlay" @click.self="closePeerIdEditor">
+      <section class="id-dialog" role="dialog" aria-modal="true" aria-labelledby="id-dialog-title">
+        <div class="eyebrow">DEIN PROFIL</div>
+        <h2 id="id-dialog-title">GUID ändern</h2>
+        <p>Beim Wechsel werden aktuelle Verbindungen getrennt. Deine Freunde bleiben gespeichert, brauchen aber deine neue ID.</p>
+        <label for="peer-id-draft">Peer-ID</label>
+        <input id="peer-id-draft" v-model="peerIdDraft" maxlength="128" :disabled="isApplyingPeerId" @keyup.enter="applyPeerId" />
+        <p v-if="peerIdError" class="id-dialog-error" role="alert">{{ peerIdError }}</p>
+        <div class="id-dialog-actions">
+          <button class="random-id-button" type="button" :disabled="isApplyingPeerId" @click="generatePeerId">Neue Zufalls-GUID</button>
+          <span class="id-dialog-spacer"></span>
+          <button class="cancel-id-button" type="button" :disabled="isApplyingPeerId" @click="closePeerIdEditor">Abbrechen</button>
+          <button class="primary-button" type="button" :disabled="isApplyingPeerId" @click="applyPeerId">{{ isApplyingPeerId ? 'Verbinde …' : 'Übernehmen' }}</button>
+        </div>
+      </section>
+    </div>
   </main>
 </template>

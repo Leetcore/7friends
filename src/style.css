@@ -35,6 +35,10 @@ button { color: inherit; }
 .profile-block input { width: 100%; margin-top: 9px; padding: 0 0 10px; border: 0; border-bottom: 1px solid #36506b; outline: 0; background: transparent; color: var(--ink); font-family: var(--font-heading); font-size: 17px; font-weight: 700; }
 .profile-block input:focus { border-color: var(--green); }
 .id-copy { display: flex; align-items: center; gap: 7px; width: 100%; margin-top: 13px; padding: 0; border: 0; background: transparent; text-align: left; cursor: pointer; }
+.profile-controls { display: grid; gap: 8px; }
+.id-edit-button { display: inline-flex; align-items: center; gap: 6px; width: fit-content; padding: 0; border: 0; background: transparent; color: #b7c8d8; font-size: 10px; cursor: pointer; }
+.id-edit-button:hover { color: #f0a184; }
+.id-edit-button > span:first-child { font-size: 14px; }
 .online-dot, .status-pip { display: inline-block; flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%; background: #68d7a8; box-shadow: 0 0 0 3px #25473f; }
 .id-value { overflow: hidden; color: var(--text-secondary); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .copy-label { margin-left: auto; color: var(--green); font-size: 10px; font-weight: 600; }
@@ -72,7 +76,7 @@ h1 { margin: 0; font-family: var(--font-heading); font-size: 34px; font-weight: 
 .summary-note { display: flex; align-items: center; gap: 9px; margin-left: auto; color: var(--text-secondary); font-size: 10px; }
 .summary-note .status-pip { width: 6px; height: 6px; }
 .list-heading { display: flex; align-items: center; justify-content: space-between; margin-top: 36px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
-.list-heading h2, .friends-heading h2 { margin: 0; font-family: var(--font-heading); font-size: 14px; font-weight: 700; }
+.list-heading h2 { margin: 0; font-family: var(--font-heading); font-size: 14px; font-weight: 700; }
 .list-heading > span { color: var(--muted); font-size: 10px; }
 .sort-arrow { color: #9ac6b7; }
 .file-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) 70px 96px auto; align-items: center; gap: 12px; min-height: 69px; border-bottom: 1px solid #263549; }
@@ -129,6 +133,10 @@ h1 { margin: 0; font-family: var(--font-heading); font-size: 34px; font-weight: 
 .decline-button { border: 1px solid #526176; background: transparent; color: #d0d7df; }
 .decline-button:hover { background: #3b2a2a; color: #ff9a83; }
 .friends-heading { display: flex; align-items: center; justify-content: space-between; margin-top: 32px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.friends-heading-refresh { display: inline-flex; align-items: center; gap: 8px; padding: 0; border: 0; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
+.friends-heading-refresh span:first-child { font-family: var(--font-heading); font-size: 14px; font-weight: 700; }
+.friends-heading-refresh span:last-child { color: #a8c0d5; font-size: 16px; }
+.friends-heading-refresh:hover span:last-child { color: #f0a184; }
 .friends-heading > span, .folder-count { color: var(--muted); font-size: 10px; }
 .friend-row { display: grid; grid-template-columns: 34px minmax(100px, 1fr) 130px 82px; align-items: center; gap: 12px; width: 100%; min-height: 65px; padding: 0 7px; border: 0; border-bottom: 1px solid #263549; background: transparent; text-align: left; cursor: pointer; }
 .friend-row:hover, .friend-row.chosen { background: #17273a; }
@@ -169,6 +177,20 @@ h1 { margin: 0; font-family: var(--font-heading); font-size: 34px; font-weight: 
 .toast-enter-active, .toast-leave-active { transition: opacity 160ms ease, transform 160ms ease; }
 .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(6px); }
 .workspace.has-player .toast-message { z-index: 20; bottom: 96px; }
+.id-dialog-overlay { position: fixed; z-index: 40; inset: 0; display: grid; place-items: center; padding: 18px; background: #050a12c9; backdrop-filter: blur(5px); }
+.id-dialog { width: min(460px, 100%); padding: 25px; border: 1px solid #3b5068; border-radius: 6px; background: #142338; box-shadow: 0 24px 70px #0009; }
+.id-dialog h2 { margin: 0; font-family: var(--font-heading); font-size: 22px; }
+.id-dialog > p { margin: 10px 0 19px; color: #bdc9d5; font-size: 12px; line-height: 1.6; }
+.id-dialog label { display: block; margin-bottom: 7px; color: #dce5ed; font-size: 11px; font-weight: 600; }
+.id-dialog input { width: 100%; height: 42px; padding: 0 11px; border: 1px solid #49617b; border-radius: 4px; outline: 0; background: #0e1927; color: var(--ink); font-size: 12px; }
+.id-dialog input:focus { border-color: #7aa9c9; box-shadow: 0 0 0 2px #4c759333; }
+.id-dialog input:disabled { opacity: .7; }
+.id-dialog .id-dialog-error { margin: 8px 0 0; color: #ffad95; font-size: 11px; }
+.id-dialog-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 20px; }
+.id-dialog-spacer { flex: 1; }
+.random-id-button, .cancel-id-button { min-height: 36px; padding: 0 10px; border: 1px solid #435973; border-radius: 4px; background: #1a2c41; color: #dce7f0; font-size: 10px; font-weight: 600; cursor: pointer; }
+.random-id-button:hover, .cancel-id-button:hover { background: #223b55; }
+.id-dialog-actions button:disabled { opacity: .6; cursor: wait; }
 
 @media (max-width: 920px) {
   .app-shell { grid-template-columns: 205px minmax(0, 1fr); }
@@ -186,7 +208,10 @@ h1 { margin: 0; font-family: var(--font-heading); font-size: 34px; font-weight: 
   .brand-mark { width: 25px; height: 25px; }
   .profile-block { position: absolute; top: 13px; right: 17px; margin: 0; padding: 0; }
   .profile-block label, .profile-block input, .id-value, .copy-label { display: none; }
+  .profile-controls { display: flex; align-items: center; gap: 6px; }
   .id-copy { width: auto; margin: 5px 0; }
+  .id-edit-button { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid #3b5068; border-radius: 4px; background: #142338; }
+  .id-edit-button .id-edit-label { display: none; }
   .main-nav { display: flex; gap: 4px; margin-top: 17px; }
   .main-nav button { flex: 1; height: 37px; padding: 0 8px; font-size: 11px; }
   .sidebar-bottom { display: none; }
@@ -210,6 +235,9 @@ h1 { margin: 0; font-family: var(--font-heading); font-size: 34px; font-weight: 
   .friend-file-count { font-size: 8px; }
   .connect-form { padding: 15px; }
   .connect-controls .primary-button { min-width: 92px; padding: 0 9px; font-size: 10px; }
+  .id-dialog { padding: 20px; }
+  .id-dialog-actions { gap: 7px; }
+  .id-dialog-spacer { display: none; }
   .access-request { grid-template-columns: 32px minmax(0, 1fr); gap: 9px; padding: 12px; }
   .request-actions { grid-column: 2; }
   .compact-list .file-row { grid-template-columns: 31px minmax(0, 1fr) 44px auto; }
