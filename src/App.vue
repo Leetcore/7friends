@@ -43,7 +43,9 @@ let peer
 const connections = new Map()
 const incomingTransfers = new Map()
 const activeFriend = computed(() => friends.value.find((friend) => friend.peerId === activePeerId.value))
-const totalSize = computed(() => localFiles.value.reduce((sum, item) => sum + item.file.size, 0))
+const totalSize = computed(() => localFiles.value
+  .filter((item) => item.available)
+  .reduce((sum, item) => sum + item.size, 0))
 
 function formatSize(bytes) {
   if (bytes < 1024) return `${bytes} B`
@@ -63,12 +65,40 @@ function setActiveTrack(track) {
   })
 }
 
-function playLocalFile(item) {
-  setActiveTrack({
-    name: item.file.name,
-    owner: 'Mein Ordner',
-    url: URL.createObjectURL(item.file),
-  })
+async function readOriginalFileChunk(item, offset, length) {
+  if (item.file) return item.file.slice(offset, offset + length).arrayBuffer()
+  if (!window.sevenFriends?.readSharedFileChunk) throw new Error('Original file access is unavailable')
+
+  const chunk = await window.sevenFriends.readSharedFileChunk(item.id, offset, length)
+  if (chunk instanceof ArrayBuffer) return chunk
+  if (ArrayBuffer.isView(chunk)) {
+    return new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength).slice().buffer
+  }
+  throw new Error('Invalid original file data')
+}
+
+async function playLocalFile(item) {
+  if (!item.available) return
+
+  try {
+    let audioFile = item.file
+    if (!audioFile) {
+      const chunks = []
+      const chunkSize = 64 * 1024
+      for (let offset = 0; offset < item.size; offset += chunkSize) {
+        chunks.push(await readOriginalFileChunk(item, offset, chunkSize))
+      }
+      audioFile = new Blob(chunks, { type: item.type })
+    }
+
+    setActiveTrack({
+      name: item.name,
+      owner: 'Mein Ordner',
+      url: URL.createObjectURL(audioFile),
+    })
+  } catch {
+    transferMessage.value = `Die Originaldatei ${item.name} kann nicht gelesen werden.`
+  }
 }
 
 function closePlayer() {
@@ -88,12 +118,12 @@ function saveFriends() {
 }
 
 function metadataForFiles() {
-  return localFiles.value.map(({ id, file }) => ({
+  return localFiles.value.filter((item) => item.available).map(({ id, name, size, type, lastModified }) => ({
     id,
-    name: file.name,
-    size: file.size,
-    type: file.type || 'application/octet-stream',
-    modified: file.lastModified,
+    name,
+    size,
+    type: type || 'application/octet-stream',
+    modified: lastModified,
   }))
 }
 
@@ -218,10 +248,10 @@ function handleMessage(connection, message) {
 
   if (message.type === 'file-request') {
     const item = localFiles.value.find((file) => file.id === message.fileId)
-    if (item) {
-      transferFile(connection, item, message.action === 'play' && isMp3(item.file) ? 'play' : 'download')
+    if (item?.available) {
+      transferFile(connection, item, message.action === 'play' && isMp3(item) ? 'play' : 'download')
         .catch(() => {
-          transferMessage.value = `Übertragung von ${item.file.name} fehlgeschlagen.`
+          transferMessage.value = `Übertragung von ${item.name} fehlgeschlagen.`
           window.setTimeout(() => { transferMessage.value = '' }, 5000)
         })
     }
@@ -372,14 +402,49 @@ function removeFriend(friendPeerId) {
 function addFiles(event) {
   const selectedFiles = Array.from(event.target.files || [])
   for (const file of selectedFiles) {
-    localFiles.value.push({ id: crypto.randomUUID(), file })
+    localFiles.value.push({
+      id: crypto.randomUUID(),
+      name: file.name,
+      size: file.size,
+      type: file.type || 'application/octet-stream',
+      lastModified: file.lastModified,
+      available: true,
+      file,
+    })
   }
   event.target.value = ''
   for (const connection of connections.values()) sendFileList(connection)
 }
 
-function removeFile(fileId) {
-  localFiles.value = localFiles.value.filter((item) => item.id !== fileId)
+async function chooseFiles() {
+  if (!window.sevenFriends?.selectSharedFiles) {
+    fileInput.value?.click()
+    return
+  }
+
+  try {
+    localFiles.value = await window.sevenFriends.selectSharedFiles()
+  } catch {
+    transferMessage.value = 'Die Originaldateien konnten nicht freigegeben werden.'
+    window.setTimeout(() => { transferMessage.value = '' }, 5000)
+  }
+
+  for (const connection of connections.values()) sendFileList(connection)
+}
+
+async function removeFile(fileId) {
+  if (window.sevenFriends?.removeSharedFile) {
+    try {
+      localFiles.value = await window.sevenFriends.removeSharedFile(fileId)
+    } catch {
+      transferMessage.value = 'Die Freigabe konnte nicht entfernt werden.'
+      window.setTimeout(() => { transferMessage.value = '' }, 5000)
+      return
+    }
+  } else {
+    localFiles.value = localFiles.value.filter((item) => item.id !== fileId)
+  }
+
   for (const connection of connections.values()) sendFileList(connection)
 }
 
@@ -389,21 +454,32 @@ async function transferFile(connection, item, action = 'download') {
   await connection.send({
     type: 'file-start',
     transferId,
-    name: item.file.name,
-    mimeType: item.file.type || 'application/octet-stream',
-    size: item.file.size,
+    name: item.name,
+    mimeType: item.type || 'application/octet-stream',
+    size: item.size,
     action,
   })
 
   let chunkIndex = 0
-  for (let offset = 0; offset < item.file.size; offset += chunkSize) {
+  for (let offset = 0; offset < item.size; offset += chunkSize) {
     if (!connection.open) throw new Error('Connection closed during transfer')
-    const chunk = await item.file.slice(offset, offset + chunkSize).arrayBuffer()
+    const chunkLength = Math.min(chunkSize, item.size - offset)
+    const chunk = await readOriginalFileChunk(item, offset, chunkLength)
+    if (chunk.byteLength !== chunkLength) throw new Error('Original file changed during transfer')
     await connection.send({ type: 'file-chunk', transferId, index: chunkIndex, chunk })
     chunkIndex += 1
   }
 
   await connection.send({ type: 'file-end', transferId })
+}
+
+async function restoreSharedFiles() {
+  if (!window.sevenFriends?.listSharedFiles) return
+  try {
+    localFiles.value = await window.sevenFriends.listSharedFiles()
+  } catch {
+    transferMessage.value = 'Gespeicherte Originaldateien konnten nicht geladen werden.'
+  }
 }
 
 function requestFile(file, action) {
@@ -550,7 +626,7 @@ function startPeer(id) {
 onMounted(() => {
   localStorage.setItem('7friends.peerId', peerId.value)
   localStorage.setItem('7friends.nickname', nickname.value)
-  startPeer(peerId.value)
+  restoreSharedFiles().finally(() => startPeer(peerId.value))
 })
 
 onUnmounted(() => {
@@ -612,7 +688,7 @@ onUnmounted(() => {
             <h1>Mein Ordner<span class="heading-period">.</span></h1>
             <p class="heading-copy">Dateien, die du mit deinen Freunden teilst.</p>
           </div>
-          <button class="primary-button" type="button" @click="fileInput?.click()">
+          <button class="primary-button" type="button" @click="chooseFiles">
             <span class="button-plus">+</span> Dateien hinzufügen
           </button>
           <input ref="fileInput" class="visually-hidden" type="file" multiple tabindex="-1" aria-hidden="true" @change="addFiles" />
@@ -628,15 +704,15 @@ onUnmounted(() => {
         <div class="list-heading"><h2>Dateien</h2><span>Name <span class="sort-arrow">↓</span></span></div>
         <div v-if="localFiles.length" class="file-list">
           <div v-for="item in localFiles" :key="item.id" class="file-row">
-            <div class="file-icon" :class="item.file.type.startsWith('image/') ? 'image-file' : 'generic-file'">
-              {{ item.file.type.startsWith('image/') ? 'IMG' : 'FILE' }}
+            <div class="file-icon" :class="item.type.startsWith('image/') ? 'image-file' : 'generic-file'">
+              {{ item.type.startsWith('image/') ? 'IMG' : 'FILE' }}
             </div>
-            <div class="file-name"><strong>{{ item.file.name }}</strong><span>Zuletzt geändert {{ new Date(item.file.lastModified).toLocaleDateString('de-DE') }}</span></div>
-            <span class="file-size">{{ formatSize(item.file.size) }}</span>
-            <span class="share-state"><span class="status-pip"></span> Geteilt</span>
+            <div class="file-name"><strong>{{ item.name }}</strong><span>Zuletzt geändert {{ item.lastModified ? new Date(item.lastModified).toLocaleDateString('de-DE') : 'Datum unbekannt' }}</span></div>
+            <span class="file-size">{{ formatSize(item.size) }}</span>
+            <span class="share-state" :class="{ unavailable: !item.available }"><span v-if="item.available" class="status-pip"></span>{{ item.available ? 'Geteilt' : 'Originaldatei nicht gefunden' }}</span>
             <div class="file-actions">
-              <button v-if="isMp3(item.file)" class="play-button" type="button" :aria-label="`${item.file.name} abspielen`" title="MP3 abspielen" @click="playLocalFile(item)">▶</button>
-              <button class="row-action" type="button" :aria-label="`${item.file.name} aus der Freigabe entfernen`" title="Aus der Freigabe entfernen" @click="removeFile(item.id)">×</button>
+              <button v-if="isMp3(item) && item.available" class="play-button" type="button" :aria-label="`${item.name} abspielen`" title="MP3 abspielen" @click="playLocalFile(item)">▶</button>
+              <button class="row-action" type="button" :aria-label="`${item.name} aus der Freigabe entfernen`" title="Freigabe entfernen; Original bleibt erhalten" @click="removeFile(item.id)">×</button>
             </div>
           </div>
         </div>
@@ -644,7 +720,7 @@ onUnmounted(() => {
           <div class="empty-illustration"><span class="folder-tab"></span><span class="folder-body"></span><span class="folder-spark">+</span></div>
           <h3>Dein Ordner ist noch leer</h3>
           <p>Füge Dateien hinzu, um sie mit verbundenen Freunden zu teilen.</p>
-          <button class="text-button" type="button" @click="fileInput?.click()">Dateien auswählen <span>→</span></button>
+          <button class="text-button" type="button" @click="chooseFiles">Dateien auswählen <span>→</span></button>
         </div>
 
         <footer class="page-foot"><span>7friends <span>·</span> Dein kleiner Kreis für Dateien</span><span>Peer-to-Peer-Verbindung</span></footer>

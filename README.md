@@ -17,7 +17,8 @@ Nach einem alten Urteil des Bundesgerichtshofs gilt die Faustregel, dass bis zu 
 ## Speicherung und Datenschutz
 
 - Peer-ID, Nickname und bestätigte Freunde werden lokal im App-Speicher abgelegt und stehen nach einem Neustart wieder zur Verfügung.
-- Freigegebene Dateien selbst werden nicht dauerhaft von 7friends gespeichert. Sie sind nur verfügbar, solange die App mit den ausgewählten Dateien geöffnet ist.
+- Freigegebene Dateien werden nicht kopiert. Electron speichert ihre Originalpfade und Metadaten unter `userData/shared-files.json` und stellt die Liste beim Neustart wieder her.
+- Ist ein Original verschoben oder gelöscht, wird es als nicht verfügbar angezeigt und nicht mehr an Freunde angeboten. Das Entfernen einer Freigabe löscht nur den Eintrag, nicht die Originaldatei.
 - Ausstehende Verbindungsanfragen werden nicht gespeichert. Ablehnen beendet die aktuelle Anfrage, blockiert die ID aber nicht dauerhaft.
 - Eine Peer-ID ist eine Adresse, kein Passwort. Bestätige nur Anfragen von Personen, die du kennst. Bereits bestätigte IDs werden bei späteren Verbindungen automatisch angenommen.
 

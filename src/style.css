@@ -88,6 +88,7 @@ h1 { margin: 0; font-family: var(--font-heading); font-size: 34px; font-weight: 
 .file-name span { color: var(--muted); font-size: 9px; }
 .file-size { color: var(--text-secondary); font-size: 10px; }
 .share-state { display: flex; align-items: center; gap: 8px; color: #a8dfc9; font-size: 10px; }
+.share-state.unavailable { color: #ffad95; }
 .share-state .status-pip { width: 5px; height: 5px; box-shadow: none; }
 .file-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
 .play-button { display: inline-grid; flex: 0 0 auto; width: 28px; height: 28px; place-items: center; padding: 0 0 0 2px; border: 1px solid #42658a; border-radius: 4px; background: #193958; color: #d3eaff; font-size: 11px; cursor: pointer; }
