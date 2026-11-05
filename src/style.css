@@ -138,10 +138,13 @@ h1 { margin: 0; font-family: var(--font-heading); font-size: 34px; font-weight: 
 .friends-heading-refresh span:last-child { color: #a8c0d5; font-size: 16px; }
 .friends-heading-refresh:hover span:last-child { color: #f0a184; }
 .friends-heading > span, .folder-count { color: var(--muted); font-size: 10px; }
-.friend-row { display: grid; grid-template-columns: 34px minmax(100px, 1fr) 130px 82px; align-items: center; gap: 12px; width: 100%; min-height: 65px; padding: 0 7px; border: 0; border-bottom: 1px solid #263549; background: transparent; text-align: left; cursor: pointer; }
+.friend-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 65px; border-bottom: 1px solid #263549; background: transparent; }
 .friend-row:hover, .friend-row.chosen { background: #17273a; }
-.friend-row:disabled { cursor: default; }
-.friend-row:disabled .friend-file-count { color: #f0a184; }
+.friend-select { display: grid; grid-template-columns: 34px minmax(100px, 1fr) 130px 82px; align-items: center; gap: 12px; width: 100%; min-width: 0; min-height: 64px; padding: 0 7px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.friend-select:disabled { cursor: default; }
+.friend-select:disabled .friend-file-count { color: #f0a184; }
+.friend-remove { display: grid; width: 28px; height: 28px; place-items: center; margin-right: 7px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: #a7b4c0; font-size: 19px; cursor: pointer; }
+.friend-remove:hover { border-color: #70443e; background: #3b2a2a; color: #ff9a83; }
 .avatar { display: grid; width: 31px; height: 31px; place-items: center; border-radius: 50%; background: #594133; color: #ffdec9; font-family: var(--font-heading); font-size: 12px; font-weight: 700; }
 .friend-details { display: grid; min-width: 0; gap: 4px; }
 .friend-details strong { font-size: 11px; font-weight: 700; }
@@ -230,7 +233,8 @@ h1 { margin: 0; font-family: var(--font-heading); font-size: 34px; font-weight: 
   .empty-state { padding-top: 53px; }
   .empty-state p { max-width: 275px; line-height: 1.5; }
   .page-foot { font-size: 8px; }
-  .friend-row { grid-template-columns: 32px minmax(80px, 1fr) 74px; gap: 8px; }
+  .friend-select { grid-template-columns: 32px minmax(80px, 1fr) 74px; gap: 8px; }
+  .friend-remove { margin-right: 4px; }
   .friend-status { display: none; }
   .friend-file-count { font-size: 8px; }
   .connect-form { padding: 15px; }

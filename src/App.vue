@@ -357,6 +357,18 @@ function refreshFriends() {
   activePeerId.value = selectedPeerId
 }
 
+function removeFriend(friendPeerId) {
+  const connection = connections.get(friendPeerId)
+  if (connection) {
+    connections.delete(friendPeerId)
+    connection.close()
+  }
+
+  friends.value = friends.value.filter((friend) => friend.peerId !== friendPeerId)
+  saveFriends()
+  if (activePeerId.value === friendPeerId) activePeerId.value = ''
+}
+
 function addFiles(event) {
   const selectedFiles = Array.from(event.target.files || [])
   for (const file of selectedFiles) {
@@ -671,12 +683,15 @@ onUnmounted(() => {
           <span>{{ friends.length }} {{ friends.length === 1 ? 'Person' : 'Personen' }}</span>
         </div>
         <div v-if="friends.length" class="friend-list">
-          <button v-for="friend in friends" :key="friend.peerId" class="friend-row" :class="{ chosen: activePeerId === friend.peerId }" :disabled="!friend.approved" @click="reconnectToFriend(friend)">
-            <span class="avatar">{{ friend.nickname.slice(0, 1).toUpperCase() }}</span>
-            <span class="friend-details"><strong>{{ friend.nickname }}</strong><small>{{ friend.peerId.slice(0, 24) }}…</small></span>
-            <span class="friend-status"><i :class="{ online: friend.status === 'Verbunden' }"></i>{{ friend.status }}</span>
-            <span class="friend-file-count">{{ friend.approved ? `${friend.files.length} Dateien` : friend.status }} <span v-if="friend.approved">→</span></span>
-          </button>
+          <div v-for="friend in friends" :key="friend.peerId" class="friend-row" :class="{ chosen: activePeerId === friend.peerId }">
+            <button class="friend-select" type="button" :disabled="!friend.approved" @click="reconnectToFriend(friend)">
+              <span class="avatar">{{ friend.nickname.slice(0, 1).toUpperCase() }}</span>
+              <span class="friend-details"><strong>{{ friend.nickname }}</strong><small>{{ friend.peerId.slice(0, 24) }}…</small></span>
+              <span class="friend-status"><i :class="{ online: friend.status === 'Verbunden' }"></i>{{ friend.status }}</span>
+              <span class="friend-file-count">{{ friend.approved ? `${friend.files.length} Dateien` : friend.status }} <span v-if="friend.approved">→</span></span>
+            </button>
+            <button v-if="friend.approved" class="friend-remove" type="button" :aria-label="`${friend.nickname} aus den Verbindungen entfernen`" title="Freund entfernen; künftig ist eine neue Anfrage nötig" @click="removeFriend(friend.peerId)">×</button>
+          </div>
         </div>
         <div v-else class="friends-empty"><span class="empty-circle">⌘</span><strong>Dein Kreis wartet auf Freunde</strong><p>Teile deine ID oder verbinde dich mit der ID eines Freundes.</p></div>
 
