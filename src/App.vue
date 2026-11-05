@@ -218,7 +218,13 @@ function handleMessage(connection, message) {
 
   if (message.type === 'file-request') {
     const item = localFiles.value.find((file) => file.id === message.fileId)
-    if (item) transferFile(connection, item, message.action === 'play' && isMp3(item.file) ? 'play' : 'download')
+    if (item) {
+      transferFile(connection, item, message.action === 'play' && isMp3(item.file) ? 'play' : 'download')
+        .catch(() => {
+          transferMessage.value = `Übertragung von ${item.file.name} fehlgeschlagen.`
+          window.setTimeout(() => { transferMessage.value = '' }, 5000)
+        })
+    }
   }
 
   if (message.type === 'file-start') {
@@ -226,6 +232,10 @@ function handleMessage(connection, message) {
       name: message.name,
       type: message.mimeType,
       action: message.action,
+      expectedSize: Number.isSafeInteger(message.size) ? message.size : null,
+      receivedSize: 0,
+      nextChunkIndex: 0,
+      invalid: false,
       chunks: [],
     })
     transferMessage.value = message.action === 'play'
@@ -235,14 +245,34 @@ function handleMessage(connection, message) {
 
   if (message.type === 'file-chunk') {
     const transfer = incomingTransfers.get(message.transferId)
-    if (transfer && message.chunk instanceof ArrayBuffer) transfer.chunks.push(message.chunk)
+    if (!transfer) return
+
+    let chunk = message.chunk
+    if (ArrayBuffer.isView(chunk)) {
+      chunk = chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength)
+    }
+    if (!(chunk instanceof ArrayBuffer)) {
+      transfer.invalid = true
+      return
+    }
+
+    if (message.index !== transfer.nextChunkIndex) transfer.invalid = true
+    transfer.nextChunkIndex += 1
+    transfer.receivedSize += chunk.byteLength
+    transfer.chunks.push(chunk)
   }
 
   if (message.type === 'file-end') {
     const transfer = incomingTransfers.get(message.transferId)
     if (!transfer) return
-    const blob = new Blob(transfer.chunks, { type: transfer.type })
     incomingTransfers.delete(message.transferId)
+    if (transfer.invalid || (transfer.expectedSize !== null && transfer.receivedSize !== transfer.expectedSize)) {
+      transferMessage.value = `Datei unvollständig empfangen (${transfer.receivedSize} von ${transfer.expectedSize ?? 'unbekannt'} Bytes). Bitte erneut anfragen.`
+      window.setTimeout(() => { transferMessage.value = '' }, 6000)
+      return
+    }
+
+    const blob = new Blob(transfer.chunks, { type: transfer.type })
     if (transfer.action === 'play') {
       setActiveTrack({
         name: transfer.name,
@@ -344,21 +374,24 @@ function removeFile(fileId) {
 async function transferFile(connection, item, action = 'download') {
   const transferId = crypto.randomUUID()
   const chunkSize = 32 * 1024
-  connection.send({
+  await connection.send({
     type: 'file-start',
     transferId,
     name: item.file.name,
     mimeType: item.file.type || 'application/octet-stream',
+    size: item.file.size,
     action,
   })
 
+  let chunkIndex = 0
   for (let offset = 0; offset < item.file.size; offset += chunkSize) {
+    if (!connection.open) throw new Error('Connection closed during transfer')
     const chunk = await item.file.slice(offset, offset + chunkSize).arrayBuffer()
-    connection.send({ type: 'file-chunk', transferId, chunk })
-    await new Promise((resolve) => window.setTimeout(resolve, 2))
+    await connection.send({ type: 'file-chunk', transferId, index: chunkIndex, chunk })
+    chunkIndex += 1
   }
 
-  connection.send({ type: 'file-end', transferId })
+  await connection.send({ type: 'file-end', transferId })
 }
 
 function requestFile(file, action) {
