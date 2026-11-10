@@ -137,10 +137,10 @@ ipcMain.handle('save-received-file', async (event, fileName, fileData) => {
 
 function createWindow() {
   const window = new BrowserWindow({
-    width: 1180,
-    height: 800,
-    minWidth: 760,
-    minHeight: 600,
+    width: 840,
+    height: 500,
+    minWidth: 680,
+    minHeight: 400,
     backgroundColor: '#f4f3ef',
     title: '7friends',
     webPreferences: {
