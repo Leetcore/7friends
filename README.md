@@ -37,3 +37,9 @@ npm run dev
 npm run build
 ```
 
+## Desktop-Builds mit GitHub Actions
+
+Der Workflow `Desktop Builds` erstellt kostenlose Pakete auf GitHub-hosted Runnern für Windows x64 (NSIS-Installer), macOS Intel und Apple Silicon (DMG) sowie Linux x64 (AppImage). Er läuft bei Pushes und Pull Requests gegen `main` oder kann unter **Actions → Desktop Builds → Run workflow** manuell gestartet werden.
+
+Nach erfolgreichem Lauf gibt es für jede Plattform ein eigenes Artefakt im Bereich **Artifacts** des Actions-Laufs: `7friends-windows-x64`, `7friends-macos` und `7friends-linux-x64`. Die Artefakte werden 14 Tage aufbewahrt. Der macOS-Build ist nicht signiert oder notarisiert; macOS kann daher beim ersten Öffnen eine Sicherheitswarnung anzeigen.
+

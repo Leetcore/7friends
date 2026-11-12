@@ -1,0 +1,60 @@
+name: Desktop Builds
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: Windows x64
+            runner: windows-latest
+            script: build:win
+            artifact: 7friends-windows-x64
+            files: release/*.exe
+          - platform: macOS Intel and Apple Silicon
+            runner: macos-latest
+            script: build:mac
+            artifact: 7friends-macos
+            files: release/*.dmg
+          - platform: Linux x64
+            runner: ubuntu-latest
+            script: build:linux
+            artifact: 7friends-linux-x64
+            files: release/*.AppImage
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build desktop app
+        run: npm run ${{ matrix.script }}
+
+      - name: Upload app package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.files }}
+          if-no-files-found: error
+          retention-days: 14

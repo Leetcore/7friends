@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "concurrently -k --success command-1 \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && electron .\"",
     "build": "vite build",
+    "build:win": "vite build && electron-builder --win nsis --x64",
+    "build:mac": "vite build && electron-builder --mac dmg --x64 --arm64",
+    "build:linux": "vite build && electron-builder --linux AppImage --x64",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
@@ -17,6 +20,57 @@
     "concurrently": "^9.1.2",
     "electron": "^45.2.3",
     "vite": "^6.0.7",
-    "wait-on": "^8.0.1"
+    "wait-on": "^8.0.1",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "app.7friends.desktop",
+    "productName": "7friends",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Utility"
+    }
   }
 }
