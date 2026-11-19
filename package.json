@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "concurrently -k --success command-1 \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && electron .\"",
     "build": "vite build",
-    "build:win": "vite build && electron-builder --win nsis --x64",
-    "build:mac": "vite build && electron-builder --mac dmg --x64 --arm64",
-    "build:linux": "vite build && electron-builder --linux AppImage --x64",
+    "build:win": "vite build && electron-builder --win nsis --x64 --publish never",
+    "build:mac": "vite build && electron-builder --mac dmg --x64 --arm64 --publish never",
+    "build:linux": "vite build && electron-builder --linux AppImage --x64 --publish never",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
